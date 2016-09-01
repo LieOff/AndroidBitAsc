@@ -45,6 +45,14 @@
                 android:text="@string/dummy_button" />
 
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="471dp"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="Small Text"
+            android:id="@+id/textView2"
+            android:layout_gravity="left|top" />
     </FrameLayout>
 
 </FrameLayout>

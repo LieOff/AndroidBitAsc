@@ -1,19 +1,37 @@
 package com.example.bitasccompany.bitasc;
 
 import android.annotation.SuppressLint;
+import android.os.AsyncTask;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.MenuItem;
 import android.support.v4.app.NavUtils;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Array;
+import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.PasswordAuthentication;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.UUID;
 
 
 /**
@@ -25,6 +43,7 @@ public class FullscreenActivity extends AppCompatActivity {
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
      */
+    private static final String TAG = FullscreenActivity.class.getSimpleName();
     private static final boolean AUTO_HIDE = true;
 
     /**
@@ -90,20 +109,88 @@ public class FullscreenActivity extends AppCompatActivity {
             return false;
         }
     };
+    private class DownloadTask extends AsyncTask<String, Void, String> {
 
+        @Override
+        protected String doInBackground(String... params) {
+            //do your request in here so that you don't interrupt the UI thread
+            try {
+                return downloadContent(params[0]);
+            } catch (IOException e) {
+                return "Unable to retrieve data. URL may be invalid.";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            //Here you are done with the task
+            Toast.makeText(FullscreenActivity.this, result, Toast.LENGTH_LONG).show();
+            TextView myAwesomeTextView = (TextView)findViewById(R.id.textView2);
+            myAwesomeTextView.setText(result);
+        }
+    }
+    private String downloadContent(String myurl) throws IOException {
+        InputStream is = null;
+        int length = 500;
+
+        try {
+            URL url = new URL(myurl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setReadTimeout(10000 /* milliseconds */);
+            conn.setConnectTimeout(15000 /* milliseconds */);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setDoInput(true);
+
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("Accept", "application/json");
+            JSONArray cred   = new JSONArray();
+            ArrayList <String> Arr = new ArrayList<>();
+            UUID uuid = UUID.randomUUID();
+            String randomUUIDString = uuid.toString();
+            //Arr.add(randomUUIDString);
+            //String taskname = new String('task/openedtasks');
+           // Arr.add("false");
+           // Arr.add(taskname);
+            cred.put(uuid);
+            cred.put(false);
+            cred.put("task"+'/'+"openedtasks");
+            Authenticator.setDefault (new Authenticator() {
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication("iiobmanov@gmail.com", "bkmzjullia92".toCharArray());
+                }
+            });
+            OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+            wr.write(cred.toString());
+            wr.flush();
+            conn.connect();
+            int response = conn.getResponseCode();
+            Log.d(TAG, "The response is: " + response);
+            Log.d(TAG, "The cred is: " + "[\"b40b28e7-b825-42a2-bb5b-ba32f7b63e9b\",\"false\",\"task/openedtasks\"]");
+            is = conn.getInputStream();
+
+            // Convert the InputStream into a string
+            String contentAsString = convertInputStreamToString(is, length);
+            return contentAsString;
+        } finally {
+            if (is != null) {
+                is.close();
+            }
+        }
+    }
+
+    public String convertInputStreamToString(InputStream stream, int length) throws IOException, UnsupportedEncodingException {
+        Reader reader = null;
+        reader = new InputStreamReader(stream, "UTF-8");
+        char[] buffer = new char[length];
+        reader.read(buffer);
+        return new String(buffer);
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try {
-            URL url = new URL("http://bit-asc.com/");
-            HttpURLConnection client = null;
-            client = (HttpURLConnection) url.openConnection();
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        new DownloadTask().execute("http://api.bit-ask.com/index.php/event/all/");
+        //String ReturnString = UpTask.doInBackground();
         setContentView(R.layout.activity_fullscreen);
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
