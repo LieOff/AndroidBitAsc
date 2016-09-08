@@ -11,6 +11,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.MenuItem;
 import android.support.v4.app.NavUtils;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -109,6 +111,7 @@ public class FullscreenActivity extends AppCompatActivity {
             return false;
         }
     };
+
     private class DownloadTask extends AsyncTask<String, Void, String> {
 
         @Override
@@ -125,13 +128,21 @@ public class FullscreenActivity extends AppCompatActivity {
         protected void onPostExecute(String result) {
             //Here you are done with the task
             Toast.makeText(FullscreenActivity.this, result, Toast.LENGTH_LONG).show();
+            try {
+                JSONObject jsonObj = new JSONObject(result);
+                Log.d(TAG, "The result is: " + jsonObj.toString());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+
             TextView myAwesomeTextView = (TextView)findViewById(R.id.textView2);
             myAwesomeTextView.setText(result);
         }
     }
     private String downloadContent(String myurl) throws IOException {
         InputStream is = null;
-        int length = 500;
+        int length = 50000;
 
         try {
             URL url = new URL(myurl);
@@ -144,6 +155,7 @@ public class FullscreenActivity extends AppCompatActivity {
 
             conn.setRequestProperty("Content-Type", "application/json");
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("AUTHORIZATION",getIntent().getExtras().getString("AuthToken"));
             JSONArray cred   = new JSONArray();
             ArrayList <String> Arr = new ArrayList<>();
             UUID uuid = UUID.randomUUID();
@@ -152,21 +164,18 @@ public class FullscreenActivity extends AppCompatActivity {
             //String taskname = new String('task/openedtasks');
            // Arr.add("false");
            // Arr.add(taskname);
+            conn.connect();
             cred.put(uuid);
             cred.put(false);
             cred.put("task"+'/'+"openedtasks");
-            Authenticator.setDefault (new Authenticator() {
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    return new PasswordAuthentication("iiobmanov@gmail.com", "bkmzjullia92".toCharArray());
-                }
-            });
             OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
-            wr.write(cred.toString());
+            wr.write('['+cred.toString()+']');
             wr.flush();
-            conn.connect();
+
             int response = conn.getResponseCode();
             Log.d(TAG, "The response is: " + response);
-            Log.d(TAG, "The cred is: " + "[\"b40b28e7-b825-42a2-bb5b-ba32f7b63e9b\",\"false\",\"task/openedtasks\"]");
+           // Log.d(TAG, "The cred is: " + "[\"b40b28e7-b825-42a2-bb5b-ba32f7b63e9b\",\"false\",\"task/openedtasks\"]");
+            Log.d(TAG, "The token is: " + getIntent().getExtras().getString("AuthToken"));
             is = conn.getInputStream();
 
             // Convert the InputStream into a string
@@ -178,7 +187,7 @@ public class FullscreenActivity extends AppCompatActivity {
             }
         }
     }
-
+    private ListView listView;
     public String convertInputStreamToString(InputStream stream, int length) throws IOException, UnsupportedEncodingException {
         Reader reader = null;
         reader = new InputStreamReader(stream, "UTF-8");
@@ -191,7 +200,18 @@ public class FullscreenActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         new DownloadTask().execute("http://api.bit-ask.com/index.php/event/all/");
         //String ReturnString = UpTask.doInBackground();
+
         setContentView(R.layout.activity_fullscreen);
+        listView = (ListView) findViewById(R.id.listView);
+        final String[] catNames = new String[] {
+                "Рыжик", "Барсик", "Мурзик", "Мурка", "Васька",
+                "Томасина", "Кристина", "Пушок", "Дымка", "Кузя",
+                "Китти", "Масяня", "Симба"
+        };
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_list_item_1, catNames);
+
+        listView.setAdapter(adapter);
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setDisplayHomeAsUpEnabled(true);

@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -29,9 +30,25 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -88,14 +105,109 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             @Override
             public void onClick(View view) {
                 //attemptLogin();
-                Intent intent = new Intent(LoginActivity.this, FullscreenActivity.class);
-                startActivity(intent);
-
+                //Intent intent = new Intent(LoginActivity.this, FullscreenActivity.class);
+                //intent.putExtra("AuthToken", "Значение");
+                //startActivity(intent);
+                new DownloadTask().execute("http://auth.bit-ask.com/index.php/auth/login/");
             }
         });
 
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
+    }
+    private static final String TAG = LoginActivity.class.getSimpleName();
+    private class DownloadTask extends AsyncTask<String, Void, String> {
+    private String token;
+        @Override
+        protected String doInBackground(String... params) {
+            //do your request in here so that you don't interrupt the UI thread
+            try {
+                return downloadContent(params[0]);
+            } catch (IOException e) {
+                return "Unable to retrieve data. URL may be invalid.";
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            //Here you are done with the task
+            //Toast.makeText(LoginActivity.this, result, Toast.LENGTH_LONG).show();
+            try {
+                JSONObject jsonObj = new JSONObject(result);
+                token = jsonObj.getString("token");
+                Toast.makeText(LoginActivity.this, token , Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(LoginActivity.this, FullscreenActivity.class);
+                intent.putExtra("AuthToken", token);
+                startActivity(intent);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+    private String downloadContent(String myurl) throws IOException {
+        InputStream is = null;
+        int length = 500;
+
+        try {
+            URL url = new URL(myurl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setReadTimeout(10000 /* milliseconds */);
+            conn.setConnectTimeout(15000 /* milliseconds */);
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setDoInput(true);
+            conn.setUseCaches(false);
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+            //conn.setRequestProperty("Accept", "application/json");
+            conn.connect();
+            JSONObject cred   = new JSONObject();
+            //ArrayList <String> Arr = new ArrayList<>();
+            //UUID uuid = UUID.randomUUID();
+            //String randomUUIDString = uuid.toString();
+            //Arr.add(randomUUIDString);
+            //String taskname = new String('task/openedtasks');
+            // Arr.add("false");
+            // Arr.add(taskname);
+
+            OutputStreamWriter printout = new OutputStreamWriter(conn.getOutputStream());
+            String strforjson = "username="+mEmailView.getText()+"&password="+mPasswordView.getText()+"&email="+mEmailView.getText();
+            strforjson = "username=amarusej@1cbit.ru&password=qweasd&email=amarusej@1cbit.ru";
+            printout.write(strforjson);
+            //Log.d(TAG, printout.toString());
+            // /OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
+            //wr.write(cred.toString());
+            //wr.flush();
+            printout.flush();
+            //
+            printout.close();
+
+            int response = conn.getResponseCode();
+            //Log.d(TAG, "The email: " + );
+            //Log.d(TAG, "The response is: " + response);
+            //Log.d(TAG, "The cred is: " + strforjson);
+            Log.d(TAG, "The url is: " + strforjson);
+            //Log.d(TAG, "The token is: " + getIntent().getExtras().getString("AuthToken"));
+            is = conn.getInputStream();
+
+            // Convert the InputStream into a string
+            String contentAsString = convertInputStreamToString(is, length);
+            return contentAsString;
+        } finally {
+            if (is != null) {
+                is.close();
+            }
+        }
+
+    }
+
+    public String convertInputStreamToString(InputStream stream, int length) throws IOException, UnsupportedEncodingException {
+        Reader reader = null;
+        reader = new InputStreamReader(stream, "UTF-8");
+        char[] buffer = new char[length];
+        reader.read(buffer);
+        //Log.d(TAG, "The answer: " + new String(buffer));
+        return new String(buffer);
     }
 
     private void populateAutoComplete() {
