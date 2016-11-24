@@ -46,19 +46,11 @@
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="256dp"
-            android:textAppearance="?android:attr/textAppearanceSmall"
-            android:text="Small Text"
-            android:id="@+id/textView2"
-            android:layout_gravity="left|top" />
-
         <ListView
             android:layout_width="wrap_content"
-            android:layout_height="248dp"
+            android:layout_height="465dp"
             android:id="@+id/listView"
-            android:layout_gravity="center" />
+            android:layout_gravity="center_horizontal|top" />
     </FrameLayout>
 
 </FrameLayout>

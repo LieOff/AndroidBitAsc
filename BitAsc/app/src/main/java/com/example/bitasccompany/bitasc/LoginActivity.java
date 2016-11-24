@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.sqlite.SQLiteDatabase;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -101,6 +102,17 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         });
 
         Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
+        Button buttonMy = (Button) findViewById(R.id.button);
+        buttonMy.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //attemptLogin();
+                //Intent intent = new Intent(LoginActivity.this, FullscreenActivity.class);
+                //intent.putExtra("AuthToken", "Значение");
+                //startActivity(intent);
+                new DownloadTask().execute("http://auth.bit-ask.com/index.php/auth/login/","My");
+            }
+        });
         mEmailSignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -108,7 +120,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
                 //Intent intent = new Intent(LoginActivity.this, FullscreenActivity.class);
                 //intent.putExtra("AuthToken", "Значение");
                 //startActivity(intent);
-                new DownloadTask().execute("http://auth.bit-ask.com/index.php/auth/login/");
+                new DownloadTask().execute("http://auth.bit-ask.com/index.php/auth/login/","Not");
             }
         });
 
@@ -122,7 +134,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         protected String doInBackground(String... params) {
             //do your request in here so that you don't interrupt the UI thread
             try {
-                return downloadContent(params[0]);
+                return downloadContent(params[0],params[1]);
             } catch (IOException e) {
                 return "Unable to retrieve data. URL may be invalid.";
             }
@@ -130,12 +142,13 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         @Override
         protected void onPostExecute(String result) {
+
             //Here you are done with the task
             //Toast.makeText(LoginActivity.this, result, Toast.LENGTH_LONG).show();
             try {
                 JSONObject jsonObj = new JSONObject(result);
                 token = jsonObj.getString("token");
-                Toast.makeText(LoginActivity.this, token , Toast.LENGTH_LONG).show();
+                //Toast.makeText(LoginActivity.this, token , Toast.LENGTH_LONG).show();
                 Intent intent = new Intent(LoginActivity.this, FullscreenActivity.class);
                 intent.putExtra("AuthToken", token);
                 startActivity(intent);
@@ -145,7 +158,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
         }
     }
-    private String downloadContent(String myurl) throws IOException {
+    private String downloadContent(String myurl,String param) throws IOException {
         InputStream is = null;
         int length = 500;
 
@@ -172,7 +185,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
             OutputStreamWriter printout = new OutputStreamWriter(conn.getOutputStream());
             String strforjson = "username="+mEmailView.getText()+"&password="+mPasswordView.getText()+"&email="+mEmailView.getText();
-            strforjson = "username=amarusej@1cbit.ru&password=qweasd&email=amarusej@1cbit.ru";
+            if (param=="My"){
+            strforjson = "username=iljaobmanov@gmail.com&password=ahzmtbm7X&email=iljaobmanov@gmail.com";}
             printout.write(strforjson);
             //Log.d(TAG, printout.toString());
             // /OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());

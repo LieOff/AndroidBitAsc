@@ -1,6 +1,8 @@
 package com.example.bitasccompany.bitasc;
 
 import android.annotation.SuppressLint;
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
@@ -11,6 +13,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.MenuItem;
 import android.support.v4.app.NavUtils;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -32,7 +35,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.UUID;
 
 
@@ -102,15 +107,10 @@ public class FullscreenActivity extends AppCompatActivity {
      * system UI. This is to prevent the jarring behavior of controls going away
      * while interacting with activity UI.
      */
-    private final View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View view, MotionEvent motionEvent) {
-            if (AUTO_HIDE) {
-                delayedHide(AUTO_HIDE_DELAY_MILLIS);
-            }
-            return false;
-        }
-    };
+
+    private String ClickIdTask;
+    private ArrayList<String> IdArray;
+
 
     private class DownloadTask extends AsyncTask<String, Void, String> {
 
@@ -118,43 +118,75 @@ public class FullscreenActivity extends AppCompatActivity {
         protected String doInBackground(String... params) {
             //do your request in here so that you don't interrupt the UI thread
             try {
-                return downloadContent(params[0]);
+                return downloadContent(params[0],params[1]);
             } catch (IOException e) {
                 return "Unable to retrieve data. URL may be invalid.";
             }
         }
-
+        private ArrayList<String> Name;
+        private ArrayList<Integer> HaveChl;
         @Override
         protected void onPostExecute(String result) {
-            //Here you are done with the task
-            Toast.makeText(FullscreenActivity.this, result, Toast.LENGTH_LONG).show();
+            Log.d(TAG, "The cred is: " + result);
             try {
-                JSONObject jsonObj = new JSONObject(result);
+                JSONArray jsonObj = new JSONArray(result);
+                JSONArray answer1 = jsonObj.getJSONArray(0);
+                JSONArray answer = answer1.getJSONArray(2);
                 Log.d(TAG, "The result is: " + jsonObj.toString());
+                //Iterator<Object> keys = jsonObj.keys();
+                Name = new ArrayList<>();
+                HaveChl = new ArrayList<>();
+                IdArray = new ArrayList<>();
+                for(int i=0; i<answer.length(); i++) {
+                    //Name.add(answer.getString());
+                    JSONObject taskobj = answer.getJSONObject(i);
+                    Name.add(taskobj.getString("taskName"));
+                    HaveChl.add(taskobj.getInt("children"));
+                    IdArray.add(taskobj.getString("id"));
+                }
+                ArrayAdapter<String> arrayAdapter =
+                        new ArrayAdapter<String>(FullscreenActivity.this,
+                                android.R.layout.simple_list_item_1,
+                                Name);
+                listView1.setAdapter(arrayAdapter);
+                listView1.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                    public void onItemClick(AdapterView<?> parent, View view,
+                                            int position, long id) {
+                        Log.d(TAG, "itemClick: position = " + position + ", id = "
+                                + id);
+                        if (HaveChl.get(position)>0) {
+                            ClickIdTask = IdArray.get(position);
+                            new DownloadTask().execute("http://api.bit-ask.com/index.php/event/all/", "task/subtasks");
+                            }
+                        }
+                });
+                Log.d(TAG, "All id: " + Name);
+
             } catch (JSONException e) {
                 e.printStackTrace();
+                new DownloadTask().execute("http://api.bit-ask.com/index.php/event/all/", "task/subtasks");
             }
 
 
-            TextView myAwesomeTextView = (TextView)findViewById(R.id.textView2);
-            myAwesomeTextView.setText(result);
+            //TextView myAwesomeTextView = (TextView)findViewById(R.id.textView2);
+            //myAwesomeTextView.setText(result);
         }
     }
-    private String downloadContent(String myurl) throws IOException {
+    private String downloadContent(String myurl, String task) throws IOException {
         InputStream is = null;
-        int length = 50000;
-
+        int length = 60000;
+        Log.d(TAG, "The task is: " + task);
         try {
             URL url = new URL(myurl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setReadTimeout(10000 /* milliseconds */);
-            conn.setConnectTimeout(15000 /* milliseconds */);
+            conn.setReadTimeout(100000 /* milliseconds */);
+            conn.setConnectTimeout(150000 /* milliseconds */);
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setDoInput(true);
 
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json;charset=windows-1251");
+           // conn.setRequestProperty("Accept", "application/json;charset=UTF-8");
             conn.setRequestProperty("AUTHORIZATION",getIntent().getExtras().getString("AuthToken"));
             JSONArray cred   = new JSONArray();
             ArrayList <String> Arr = new ArrayList<>();
@@ -167,27 +199,40 @@ public class FullscreenActivity extends AppCompatActivity {
             conn.connect();
             cred.put(uuid);
             cred.put(false);
-            cred.put("task"+'/'+"openedtasks");
+            cred.put(task);
             OutputStreamWriter wr = new OutputStreamWriter(conn.getOutputStream());
-            wr.write('['+cred.toString()+']');
+
+            if (task == "task/subtasks") {
+                JSONObject param = new JSONObject();
+                String ph = ClickIdTask;
+                param.put("parentId",ph);
+                cred.put(param);
+                wr.write('['+cred.toString()+']');
+            }else{
+                wr.write('['+cred.toString()+']');
+            }
+
             wr.flush();
 
             int response = conn.getResponseCode();
             Log.d(TAG, "The response is: " + response);
-           // Log.d(TAG, "The cred is: " + "[\"b40b28e7-b825-42a2-bb5b-ba32f7b63e9b\",\"false\",\"task/openedtasks\"]");
-            Log.d(TAG, "The token is: " + getIntent().getExtras().getString("AuthToken"));
+            Log.d(TAG, "The cred is: " + '['+cred.toString()+']');
+            //Log.d(TAG, "The token is: " + getIntent().getExtras().getString("AuthToken"));
             is = conn.getInputStream();
 
             // Convert the InputStream into a string
             String contentAsString = convertInputStreamToString(is, length);
             return contentAsString;
+        } catch (JSONException e) {
+            e.printStackTrace();
         } finally {
             if (is != null) {
                 is.close();
             }
         }
+        return null;
     }
-    private ListView listView;
+    private ListView listView1;
     public String convertInputStreamToString(InputStream stream, int length) throws IOException, UnsupportedEncodingException {
         Reader reader = null;
         reader = new InputStreamReader(stream, "UTF-8");
@@ -195,23 +240,18 @@ public class FullscreenActivity extends AppCompatActivity {
         reader.read(buffer);
         return new String(buffer);
     }
+    private DatabaseHelper mDatabaseHelper;
+    private SQLiteDatabase mSqLiteDatabase;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        new DownloadTask().execute("http://api.bit-ask.com/index.php/event/all/");
+        new DownloadTask().execute("http://api.bit-ask.com/index.php/event/all/","task"+'/'+"openedtasks");
         //String ReturnString = UpTask.doInBackground();
 
         setContentView(R.layout.activity_fullscreen);
-        listView = (ListView) findViewById(R.id.listView);
-        final String[] catNames = new String[] {
-                "Рыжик", "Барсик", "Мурзик", "Мурка", "Васька",
-                "Томасина", "Кристина", "Пушок", "Дымка", "Кузя",
-                "Китти", "Масяня", "Симба"
-        };
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_list_item_1, catNames);
+        listView1 = (ListView) findViewById(R.id.listView);
 
-        listView.setAdapter(adapter);
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setDisplayHomeAsUpEnabled(true);
@@ -221,19 +261,20 @@ public class FullscreenActivity extends AppCompatActivity {
         mControlsView = findViewById(R.id.fullscreen_content_controls);
         mContentView = findViewById(R.id.fullscreen_content);
 
+        mDatabaseHelper = new DatabaseHelper(this, "mydatabase.db", null, 1);
 
-        // Set up the user interaction to manually show or hide the system UI.
-        mContentView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                toggle();
-            }
-        });
+        mSqLiteDatabase = mDatabaseHelper.getWritableDatabase();
 
-        // Upon interacting with UI controls, delay any scheduled hide()
-        // operations to prevent the jarring behavior of controls going away
-        // while interacting with the UI.
-        findViewById(R.id.dummy_button).setOnTouchListener(mDelayHideTouchListener);
+        ContentValues values = new ContentValues();
+        // Задайте значения для каждого столбца
+        values.put(DatabaseHelper.CAT_NAME_COLUMN, "Рыжик");
+        values.put(DatabaseHelper.PHONE_COLUMN, "4954553443");
+        values.put(DatabaseHelper.AGE_COLUMN, "5");
+        // Вставляем данные в таблицу
+        mSqLiteDatabase.insert("cats", null, values);
+
+
+
     }
 
     @Override
